@@ -53,7 +53,7 @@ class _MyHomePageState extends State<MyHomePage> {
       flow_map[alternateFlowId] = nodeListPage;
       nodeListPage.associationStream.listen((event) {
         final GlobalKey key =
-            flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
+        flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
         scrollToNode(key);
         flow_map[event['tree_id']]!.nodeListWidget.selectNode(event['id']);
         nodeListPage.nodeListWidget.deselectNode();
@@ -64,7 +64,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
       nodeListPage.linkStream.listen((event) {
         this.from_node = event;
-        selectionState = true;
+        setState(() {
+          selectionState = true;
+        });
         from_node_list_page = nodeListPage;
       });
     }
@@ -77,7 +79,7 @@ class _MyHomePageState extends State<MyHomePage> {
       flow_map[exceptionFlowId] = nodeListPage;
       nodeListPage.associationStream.listen((event) {
         final GlobalKey key =
-            flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
+        flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
         scrollToNode(key);
         flow_map[event['tree_id']]!.nodeListWidget.selectNode(event['id']);
         nodeListPage.nodeListWidget.deselectNode();
@@ -89,7 +91,9 @@ class _MyHomePageState extends State<MyHomePage> {
       nodeListPage.linkStream.listen((event) {
         this.from_node = event;
         this.from_node_list_page = nodeListPage;
-        selectionState = true;
+        setState(() {
+          selectionState = true;
+        });
       });
     }
 
@@ -101,7 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
     flow_map[serializedData['main_flow']] = main_flow;
     main_flow.associationStream.listen((event) {
       final GlobalKey key =
-          flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
+      flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
       scrollToNode(key);
       flow_map[event['tree_id']]!.nodeListWidget.selectNode(event['id']);
       main_flow.nodeListWidget.deselectNode();
@@ -114,7 +118,9 @@ class _MyHomePageState extends State<MyHomePage> {
     main_flow.linkStream.listen((event) {
       this.from_node = event;
       from_node_list_page = main_flow;
-      selectionState = true;
+      setState(() {
+        selectionState = true;
+      });
     });
 
     setState(() {
@@ -123,13 +129,50 @@ class _MyHomePageState extends State<MyHomePage> {
   }
   //github
 
+  Widget _buildNotificationWidget() {
+    return Container(
+      padding: EdgeInsets.all(8.0),
+      color: Colors.blueAccent,
+      width: double.infinity,
+      height: 50,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Select a node',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20),
+            textAlign: TextAlign.center,
+
+          ),
+        ],
+      ),
+    );
+  }
+
   void nodeClicked(Node event, NodeListPage node_list_page) {
     if (selectionState) {
       if (from_node != event) {
         print('This should be selected from ${this.from_node!.text}:');
-        from_node_list_page!.associate_node(this.from_node!, event, this.from_node_list_page!, node_list_page);
+        final snackBar = SnackBar(
+          content: Text("The Node '${event.text}' has been associated to '${this.from_node!.text}'"),
+          action: SnackBarAction(
+            label: 'OK',
+            onPressed: () {
+              // Some code to undo the change.
+            },
+            backgroundColor: Colors.lightGreen,
+            textColor: Colors.black,
+          ),
+        );
+
+        // Show the snackbar
+        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+        from_node_list_page!.associate_node(
+            this.from_node!, event, this.from_node_list_page!, node_list_page);
       }
-      selectionState = false;
+      setState(() {
+        selectionState = false;
+      });
       from_node = null;
       from_node_list_page = null;
     }
@@ -142,9 +185,6 @@ class _MyHomePageState extends State<MyHomePage> {
     getTrees(1);
   }
 
-
-
-
   @override
   Widget build(BuildContext context) {
     var text = 'Add Alternate Flows';
@@ -153,52 +193,56 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: ListView(
-        children: treesFetched
-            ? <Widget>[
-                TextButton(
-                  onPressed: () {
-                    print(flow_map[16]!.nodeListWidget);
-                  },
-                  child: Text('SCROOOOOL!!!'),
-                  style: ButtonStyle(
-                    backgroundColor: MaterialStatePropertyAll(Colors.yellow),
-                    foregroundColor: MaterialStatePropertyAll(Colors.black),
-                  ),
-                ),
-                main_flow,
-                TextButton(
-                  onPressed: () async {
-                    await addAlternateFlow();
-                  },
-                  child: Text(text),
-                  style: ButtonStyle(
-                    backgroundColor: MaterialStatePropertyAll(Colors.yellow),
-                    foregroundColor: MaterialStatePropertyAll(Colors.black),
-                  ),
-                ),
-                Column(
-                  children: alternate_flows,
-                ),
-                TextButton(
-                  onPressed: () async {
-                    await addExceptionFlow();
-                  },
-                  child: Text('Add Exception Flow'),
-                  style: ButtonStyle(
-                    backgroundColor: MaterialStatePropertyAll(Colors.yellow),
-                    foregroundColor: MaterialStatePropertyAll(Colors.black),
-                  ),
-                ),
+      body: Stack(
+        children: [
+          ListView(
+            children: treesFetched
+                ? <Widget>[
 
-                Column(
-                  children: exception_flows,
-                )
-                // NodeListPage(
-                //   treeId: 6, // Replace with your second flowId
-                // ),
-              ]
-            : [],
+              main_flow,
+              TextButton(
+                onPressed: () async {
+                  await addAlternateFlow();
+                },
+                child: Text(text),
+                style: ButtonStyle(
+                  backgroundColor:
+                  MaterialStatePropertyAll(Colors.yellow),
+                  foregroundColor: MaterialStatePropertyAll(Colors.black),
+                ),
+              ),
+              Column(
+                children: alternate_flows,
+              ),
+              TextButton(
+                onPressed: () async {
+                  await addExceptionFlow();
+                },
+                child: Text('Add Exception Flow'),
+                style: ButtonStyle(
+                  backgroundColor:
+                  MaterialStatePropertyAll(Colors.yellow),
+                  foregroundColor: MaterialStatePropertyAll(Colors.black),
+                ),
+              ),
+
+              Column(
+                children: exception_flows,
+              )
+              // NodeListPage(
+              //   treeId: 6, // Replace with your second flowId
+              // ),
+            ]
+                : [],
+          ),
+          if (selectionState)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _buildNotificationWidget(),
+            ),
+        ],
       ),
     );
   }

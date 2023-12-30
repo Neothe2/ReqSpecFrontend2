@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:io';
 import 'package:bloc/bloc.dart';
 import 'package:meta/meta.dart';
 import 'package:http/http.dart' as http;
@@ -30,12 +31,14 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
     on<AddNodeEvent>(_onAddNodeEvent);
     on<DeselectNodeEvent>(_onDeselectNode);
     on<AssociateNodeEvent>(_onAssociateNode);
+    on<UnassociateForwardEvent>(_onUnassociateForwardEvent);
+    on<UnassociateBackwardEvent>(_onUnassociateBackwardEvent);
   }
 
   FutureOr<void> _onIndentNodeBackwardEvent(
-    IndentNodeBackwardEvent event,
-    Emitter<NodeState> emit,
-  ) async {
+      IndentNodeBackwardEvent event,
+      Emitter<NodeState> emit,
+      ) async {
     if (event.node.parent != null && event.node.parent!.parent != null) {
       var parent = event.node.parent;
       var newParent = event.node.parent!.parent!;
@@ -137,7 +140,7 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
       //     body: jsonEncode(requestBody)); // Encoding the request body as JSON
       //
       // print(response.body);
-      // print(response.statusCode);help my texfffffffffffffffffffffmy textr cant get out nooooooo
+      // print(response.statusCode);
       httpService.httpIndentNodeForward(event.node, newParent);
 
       newParent.addAsChild(event.node);
@@ -174,9 +177,9 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
   }
 
   FutureOr<void> _onLoadTreesEvent(
-    LoadTreesEvent event,
-    Emitter<NodeState> emit,
-  ) async {
+      LoadTreesEvent event,
+      Emitter<NodeState> emit,
+      ) async {
     final response = await httpService.httpLoadTrees();
     if (response.statusCode == 200) {
       trees = parseTreesFromJson(response.body);
@@ -188,9 +191,9 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
   }
 
   void _onNumberNodesEvent(
-    NumberNodesEvent event,
-    Emitter<NodeState> emit,
-  ) {
+      NumberNodesEvent event,
+      Emitter<NodeState> emit,
+      ) {
     for (var tree in trees) {
       _numberNodesRecursive(tree.rootNode.children);
     }
@@ -208,25 +211,25 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
   // }
 
   FutureOr<void> _onNodeSelectedEvent(
-    SelectNodeEvent event,
-    Emitter<NodeState> emit,
-  ) async {
+      SelectNodeEvent event,
+      Emitter<NodeState> emit,
+      ) async {
     emit(NodeSelectedState(trees, event.node));
   }
 
   FutureOr<void> _onEditNodeEvent(
-    EditNodeEvent event,
-    Emitter<NodeState> emit,
-  ) async {
+      EditNodeEvent event,
+      Emitter<NodeState> emit,
+      ) async {
     emit(EditingNodeState(trees, event.nodeId));
   }
 
   FutureOr<void> _onUpdateNodeTextEvent(
-    UpdateNodeTextEvent event,
-    Emitter<NodeState> emit,
-  ) async {
+      UpdateNodeTextEvent event,
+      Emitter<NodeState> emit,
+      ) async {
     final response =
-        await httpService.httpUpdateNodeText(event.node, event.newText);
+    await httpService.httpUpdateNodeText(event.node, event.newText);
     if (response.statusCode == 200) {
       event.node.text = event.newText;
       emit(NodeSelectedState(trees, event.node));
@@ -236,18 +239,18 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
   }
 
   FutureOr<void> _onMoveNodeUpEvent(
-    MoveNodeUpEvent event,
-    Emitter<NodeState> emit,
-  ) async {
+      MoveNodeUpEvent event,
+      Emitter<NodeState> emit,
+      ) async {
     Node parent = event.node.parent!;
     if (event.node.order > 1) {
       Node nodeToSwap = parent.getNodeByOrder(event.node.order - 1);
 
       // Use TreeHttpProvider for HTTP requests
       final responseSwap =
-          await httpService.httpMoveNode(nodeToSwap, event.node.order);
+      await httpService.httpMoveNode(nodeToSwap, event.node.order);
       final responseCurrent =
-          await httpService.httpMoveNode(event.node, event.node.order - 1);
+      await httpService.httpMoveNode(event.node, event.node.order - 1);
 
       if (responseSwap.statusCode == 200 && responseCurrent.statusCode == 200) {
         nodeToSwap.order = event.node.order;
@@ -262,18 +265,18 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
   }
 
   FutureOr<void> _onMoveNodeDownEvent(
-    MoveNodeDownEvent event,
-    Emitter<NodeState> emit,
-  ) async {
+      MoveNodeDownEvent event,
+      Emitter<NodeState> emit,
+      ) async {
     Node parent = event.node.parent!;
     if (event.node.order < parent.children.length) {
       Node nodeToSwap = parent.getNodeByOrder(event.node.order + 1);
 
       // Use TreeHttpProvider for HTTP requests
       final responseSwap =
-          await httpService.httpMoveNode(nodeToSwap, event.node.order);
+      await httpService.httpMoveNode(nodeToSwap, event.node.order);
       final responseCurrent =
-          await httpService.httpMoveNode(event.node, event.node.order + 1);
+      await httpService.httpMoveNode(event.node, event.node.order + 1);
 
       if (responseSwap.statusCode == 200 && responseCurrent.statusCode == 200) {
         nodeToSwap.order = event.node.order;
@@ -287,10 +290,11 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
     }
   }
 
+  //TODO order
   FutureOr<void> _onDeleteNodeEvent(
-    DeleteNodeEvent event,
-    Emitter<NodeState> emit,
-  ) async {
+      DeleteNodeEvent event,
+      Emitter<NodeState> emit,
+      ) async {
     dynamic parent = event.node.parent ?? event.node.tree;
     final response = await httpService.httpDeleteNode(event.node);
     print(response.statusCode);
@@ -323,9 +327,9 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
   }
 
   FutureOr<void> _onAddNodeEvent(
-    AddNodeEvent event,
-    Emitter<NodeState> emit,
-  ) async {
+      AddNodeEvent event,
+      Emitter<NodeState> emit,
+      ) async {
     var order = event.under.children.length + 1;
     final response = await httpService.httpAddNode(
         event.under, event.tree, event.text, order);
@@ -342,8 +346,10 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
           parent: event.under);
       if (event.under.parent != null) {
         event.under.parent!.children.add(new_node);
+        _updateNodeOrders(event.under.parent!);
       } else {
         event.under.children.add(new_node);
+        _updateNodeOrders(event.under);
       }
       event.under.sortNodes();
       numberNodes();
@@ -356,6 +362,26 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
 
   Future<http.Response> getTreeOfNode(int nodeId, String url) async {
     return await httpService.getTreeid(nodeId, url);
+  }
+
+  Future<List<AssociatedNode>> getForwardAssociationsOfNode(int nodeId) async {
+    http.Response response = await httpService.getForwardAssociations(nodeId);
+    var serializedResponse = jsonDecode(response.body);
+    List<AssociatedNode> associatedNodes = [];
+    for (var node in serializedResponse) {
+      associatedNodes.add(AssociatedNode(node['id'], node['url']));
+    }
+    return associatedNodes;
+  }
+
+  Future<List<AssociatedNode>> getBackwardAssociationsOfNode(int nodeId) async {
+    http.Response response = await httpService.getBackwardAssociations(nodeId);
+    var serializedResponse = jsonDecode(response.body);
+    List<AssociatedNode> associatedNodes = [];
+    for (var node in serializedResponse) {
+      associatedNodes.add(AssociatedNode(node['id'], node['url']));
+    }
+    return associatedNodes;
   }
 
   // Future<List<Tree>> _fetchTrees() async {
@@ -392,12 +418,18 @@ class NodeBloc extends Bloc<TreeEvent, NodeState> {
     emit(TreesNumberedState(trees));
   }
 
+
+
   FutureOr<void> _onAssociateNode(AssociateNodeEvent event, Emitter<NodeState> emit) async {
     await httpService.associateNode(event.from_node.id, event.to_node.id);
-    await event.from_node_list_page.nodeListWidget.refresh();
-    await event.to_node_list_page.nodeListWidget.refresh();
-    event.from_node_list_page.nodeListWidget.selectNode(event.from_node.id);
-    event.to_node_list_page.nodeListWidget.selectNode(event.to_node.id);
+  }
+
+  FutureOr<void> _onUnassociateBackwardEvent(UnassociateBackwardEvent event, Emitter<NodeState> emit) {
+    httpService.unassociate_backward(event.from_node.id, event.to_node.id);
+  }
+
+  FutureOr<void> _onUnassociateForwardEvent(UnassociateForwardEvent event, Emitter<NodeState> emit) {
+    httpService.unassociate_forward(event.from_node.id, event.to_node.id);
   }
 }
 

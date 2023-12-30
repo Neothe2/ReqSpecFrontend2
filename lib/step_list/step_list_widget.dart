@@ -15,9 +15,9 @@ class NodeListPage extends StatelessWidget {
   late TreeHttpProvider httpProvider;
   late NodeListWidget nodeListWidget;
   final StreamController<Map<String, dynamic>> associationStreamController =
-      StreamController<Map<String, dynamic>>();
+  StreamController<Map<String, dynamic>>();
   final StreamController<Node> nodeClickStreamController =
-      StreamController<Node>.broadcast();
+  StreamController<Node>.broadcast();
 
   Stream<Node> get nodeClickStream => nodeClickStreamController.stream;
 
@@ -29,7 +29,7 @@ class NodeListPage extends StatelessWidget {
       associationStreamController.stream;
 
   final StreamController<Node> linkStreamController =
-      StreamController<Node>.broadcast();
+  StreamController<Node>.broadcast();
 
   Stream<Node> get linkStream => linkStreamController.stream;
 
@@ -99,9 +99,9 @@ class NodeListWidget extends StatelessWidget {
     context.read<NodeBloc>().add(AssociateNodeEvent(from_node, to_node, from_node_list_page, to_node_list_page));
   }
 
-  Future<AssociatedNode?> _showAssociationsModal(
-      BuildContext context, List<AssociatedNode> forwardAssociations) async {
-    final result = await showModalBottomSheet<AssociatedNode>(
+  Future<Map<String, dynamic>?> _showAssociationsModal(
+      BuildContext context, List<AssociatedNode> associations, bool isForward) async {
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       builder: (BuildContext context) {
         return Container(
@@ -109,13 +109,19 @@ class NodeListWidget extends StatelessWidget {
           color: Colors.white,
           child: Center(
             child: ListView.builder(
-              itemCount: forwardAssociations.length,
+              itemCount: associations.length,
               itemBuilder: (BuildContext context, int index) {
-                AssociatedNode associatedNode = forwardAssociations[index];
+                AssociatedNode associatedNode = associations[index];
                 return ListTile(
                   title: Text('Node ID: ${associatedNode.id}'),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      Navigator.pop(context, {'node': associatedNode, 'delete': true});
+                    },
+                  ),
                   onTap: () {
-                    Navigator.pop(context, associatedNode); // Return the number
+                    Navigator.pop(context, {'node': associatedNode, 'delete': false});
                   },
                 );
               },
@@ -128,6 +134,8 @@ class NodeListWidget extends StatelessWidget {
     // Handle the result
     return result;
   }
+
+
 
   refresh() {
     context.read<NodeBloc>().add(LoadTreesEvent());
@@ -143,11 +151,11 @@ class NodeListWidget extends StatelessWidget {
   }
 
   Widget buildNodeCard(
-    Node node,
-    bool isSelected,
-    BuildContext context,
-    bool isEditing,
-  ) {
+      Node node,
+      bool isSelected,
+      BuildContext context,
+      bool isEditing,
+      ) {
     nodeKeys[node.id] = GlobalKey();
 
     var editingText = '';
@@ -178,37 +186,37 @@ class NodeListWidget extends StatelessWidget {
               ),
               title: isEditing && isSelected
                   ? TextField(
-                      controller: TextEditingController(text: node.text),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      autofocus: true,
-                      onChanged: (String text) {
-                        editingText = text;
-                      },
-                      onSubmitted: (String text) {
-                        context
-                            .read<NodeBloc>()
-                            .add(UpdateNodeTextEvent(node, text));
-                      },
-                    )
+                controller: TextEditingController(text: node.text),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                autofocus: true,
+                onChanged: (String text) {
+                  editingText = text;
+                },
+                onSubmitted: (String text) {
+                  context
+                      .read<NodeBloc>()
+                      .add(UpdateNodeTextEvent(node, text));
+                },
+              )
                   : Text(
-                      node.text,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isSelected ? Colors.white : Colors.black,
-                      ),
-                    ),
+                node.text,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : Colors.black,
+                ),
+              ),
               trailing: isSelected
                   ? Icon(
-                      Icons.check_circle_outline,
-                      color: Colors.white,
-                    )
+                Icons.check_circle_outline,
+                color: Colors.white,
+              )
                   : null,
             ),
             // Submenu appears as a row of icon buttons when the item is selected
@@ -217,33 +225,40 @@ class NodeListWidget extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
                   mainAxisAlignment:
-                      MainAxisAlignment.start, // Align to the start (left)
+                  MainAxisAlignment.start, // Align to the start (left)
                   children: [
                     // Use TextButton for a more flat and left-aligned appearance
                     TextButton(
                       onPressed: () async {
-                        var association_node = await _showAssociationsModal(
-                            context, node.forwardNodeAssociations);
+                        List<AssociatedNode> forwardAssociations = await context
+                            .read<NodeBloc>().getForwardAssociationsOfNode(node.id);
+                        var association_modal_data = await _showAssociationsModal(
+                            context, forwardAssociations, true);
                         // print('skjfal;skdjf;laksjdf;laksjdf');
-                        if (association_node != null) {
+                        if (association_modal_data != null) {
                           // Add an event to the stream when an association is tapped.
-                          var response = await context
-                              .read<NodeBloc>()
-                              .getTreeOfNode(
-                                  association_node.id, association_node.url);
-                          var serializedResponse = jsonDecode(response.body);
-                          print(serializedResponse['tree_id']);
-                          this.associationStreamController.add({
-                            'id': association_node.id,
-                            'tree_id': serializedResponse['tree_id']
-                          });
+                          if (association_modal_data['delete']) {
+                            context.read<NodeBloc>().add(UnassociateForwardEvent(node, association_modal_data['node']));
+                          } else {
+                            var response = await context
+                                .read<NodeBloc>()
+                                .getTreeOfNode(
+                                association_modal_data['node'].id, association_modal_data['node'].url);
+                            var serializedResponse = jsonDecode(response.body);
+                            print(serializedResponse['tree_id']);
+                            this.associationStreamController.add({
+                              'id': association_modal_data['node'].id,
+                              'tree_id': serializedResponse['tree_id']
+                            });
+                          }
+
                         }
                       },
                       child: Text('Linked to'),
                       style: TextButton.styleFrom(
                         primary: Colors.lightBlue, // Text Color
                         backgroundColor:
-                            Colors.white, // Button background color
+                        Colors.white, // Button background color
                         padding: EdgeInsets.symmetric(
                             horizontal: 16.0), // Button padding
                       ),
@@ -251,28 +266,34 @@ class NodeListWidget extends StatelessWidget {
                     SizedBox(width: 8), // Spacing between buttons
                     TextButton(
                       onPressed: () async {
-                        var associated_node = await _showAssociationsModal(
-                            context, node.backwardNodeAssociations);
-                        print('skjfal;skdjf;laksjdf;laksjdf');
-                        if (associated_node != null) {
+                        List<AssociatedNode> backwardAssociations = await context
+                            .read<NodeBloc>().getBackwardAssociationsOfNode(node.id);
+                        var association_modal_data = await _showAssociationsModal(
+                            context, backwardAssociations, false);
+                        if (association_modal_data != null) {
                           // Add an event to the stream when an association is tapped.
-                          var response = await context
-                              .read<NodeBloc>()
-                              .getTreeOfNode(
-                                  associated_node.id, associated_node.url);
-                          var serializedResponse = jsonDecode(response.body);
-                          print(serializedResponse['tree_id']);
-                          this.associationStreamController.add({
-                            'id': associated_node.id,
-                            'tree_id': serializedResponse['tree_id']
-                          });
+                          if (association_modal_data['delete'] == true) {
+                            context.read<NodeBloc>().add(UnassociateBackwardEvent(association_modal_data['node'], node));
+                          } else {
+                            var response = await context
+                                .read<NodeBloc>()
+                                .getTreeOfNode(
+                                association_modal_data['node'].id, association_modal_data['node'].url);
+                            var serializedResponse = jsonDecode(response.body);
+                            print(serializedResponse['tree_id']);
+                            this.associationStreamController.add({
+                              'id': association_modal_data['node'].id,
+                              'tree_id': serializedResponse['tree_id']
+                            });
+                          }
+
                         }
                       },
                       child: Text('Linked from'),
                       style: TextButton.styleFrom(
                         primary: Colors.lightBlue, // Text Color
                         backgroundColor:
-                            Colors.white, // Button background color
+                        Colors.white, // Button background color
                         padding: EdgeInsets.symmetric(
                             horizontal: 16.0), // Button padding
                       ),
@@ -287,7 +308,7 @@ class NodeListWidget extends StatelessWidget {
                       style: TextButton.styleFrom(
                         primary: Colors.lightBlue, // Text Color
                         backgroundColor:
-                            Colors.white, // Button background color
+                        Colors.white, // Button background color
                         padding: EdgeInsets.symmetric(
                             horizontal: 16.0), // Button padding
                       ),
@@ -352,24 +373,24 @@ class NodeListWidget extends StatelessWidget {
                       ),
                       !isEditing
                           ? IconButton(
-                              icon: Icon(Icons.edit),
-                              onPressed: () {
-                                context
-                                    .read<NodeBloc>()
-                                    .add(EditNodeEvent(node.id));
-                                // Handle delete
-                              },
-                              color: Colors.white,
-                            )
+                        icon: Icon(Icons.edit),
+                        onPressed: () {
+                          context
+                              .read<NodeBloc>()
+                              .add(EditNodeEvent(node.id));
+                          // Handle delete
+                        },
+                        color: Colors.white,
+                      )
                           : IconButton(
-                              onPressed: () {
-                                context.read<NodeBloc>().add(
-                                    UpdateNodeTextEvent(node, editingText));
-                              },
-                              icon: Icon(
-                                Icons.check,
-                                color: Colors.white,
-                              )),
+                          onPressed: () {
+                            context.read<NodeBloc>().add(
+                                UpdateNodeTextEvent(node, editingText));
+                          },
+                          icon: Icon(
+                            Icons.check,
+                            color: Colors.white,
+                          )),
                     ],
                   ),
                 ),
@@ -395,7 +416,7 @@ class NodeListWidget extends StatelessWidget {
           //     ? state.trees.first.steps
           //     : (state as treesNumberedState).trees.first.steps;
           reqspec_models.Tree tree =
-              gettreeById((state as dynamic).trees, treeId);
+          gettreeById((state as dynamic).trees, treeId);
           var nodes = getAllNodes(tree);
           this.nodes = nodes;
           var selectedNodeId = -1;
@@ -490,11 +511,11 @@ class NodeListWidget extends StatelessWidget {
   }
 
   List<Widget> getNodeList(
-    List<Node> nodes,
-    int selectedNodeId,
-    BuildContext context,
-    bool isEditing,
-  ) {
+      List<Node> nodes,
+      int selectedNodeId,
+      BuildContext context,
+      bool isEditing,
+      ) {
     // Map each step to a widget using the buildStepCard function
     // and then convert it to a list using toList().
     List<Widget> nodeWidgets = nodes.map<Widget>((node) {

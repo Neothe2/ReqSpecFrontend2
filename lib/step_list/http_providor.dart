@@ -43,8 +43,38 @@ class TreeHttpProvider {
         body: jsonEncode(requestBody));
   }
 
+  Future<http.Response> unassociate_forward(int from_node_id, int to_node_id) async {
+    var requestBody = {
+      "id": to_node_id,
+    };
+
+    return await http.post(Uri.parse('${url + nodesRoute}/${from_node_id}/unassociate_forward/'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(requestBody));
+  }
+
+  Future<http.Response> unassociate_backward(int from_node_id, int to_node_id) async {
+    var requestBody = {
+      "id": from_node_id,
+    };
+
+    return await http.post(Uri.parse('${url + nodesRoute}/${to_node_id}/unassociate_backward/'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(requestBody));
+  }
+
+
+
   Future<http.Response> httpLoadTrees() async {
     return await http.get(Uri.parse('${url}/trees/'));
+  }
+
+  Future<http.Response> getForwardAssociations(int node_id) async {
+    return await http.get(Uri.parse('${url + nodesRoute}/${node_id}/forward_associations/'));
+  }
+
+  Future<http.Response> getBackwardAssociations(int node_id) async {
+    return await http.get(Uri.parse('${url + nodesRoute}/${node_id}/backward_associations/'));
   }
 
   Future<http.Response> httpUpdateNodeText(Node node, String newText) async {

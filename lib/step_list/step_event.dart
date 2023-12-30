@@ -33,6 +33,20 @@ class EditNodeEvent extends TreeEvent {
   EditNodeEvent(this.nodeId);
 }
 
+class UnassociateForwardEvent extends TreeEvent {
+  final Node from_node;
+  final AssociatedNode to_node;
+
+  UnassociateForwardEvent(this.from_node, this.to_node);
+}
+
+class UnassociateBackwardEvent extends TreeEvent {
+  final AssociatedNode from_node;
+  final Node to_node;
+
+  UnassociateBackwardEvent(this.from_node, this.to_node);
+}
+
 // Event triggered when the user submits their changes to a node's text
 class UpdateNodeTextEvent extends TreeEvent {
   final Node node;
