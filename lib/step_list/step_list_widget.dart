@@ -96,7 +96,7 @@ class NodeListWidget extends StatelessWidget {
   }
 
   associateNode(Node from_node, Node to_node, NodeListPage from_node_list_page, NodeListPage to_node_list_page) {
-    context.read<NodeBloc>().add(AssociateNodeEvent(from_node, to_node, from_node_list_page, to_node_list_page));
+    context.read<NodeBloc>().add(AssociateNodeEvent(from_node, to_node));
   }
 
   Future<Map<String, dynamic>?> _showAssociationsModal(
@@ -504,11 +504,7 @@ class NodeListWidget extends StatelessWidget {
     return word[0].toUpperCase() + word.substring(1).toLowerCase();
   }
 
-  void main() {
-    String word = "THIS";
-    String convertedWord = convertWord(word);
-    print(convertedWord); // This
-  }
+
 
   List<Widget> getNodeList(
       List<Node> nodes,
