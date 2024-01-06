@@ -403,6 +403,7 @@ class NodeListWidget extends StatelessWidget {
     );
   }
 
+  //BUILDBLOC
   Widget buildNodesFromBloc(BuildContext context) {
     return BlocBuilder<NodeBloc, NodeState>(
       builder: (context, state) {
@@ -496,6 +497,7 @@ class NodeListWidget extends StatelessWidget {
       },
     );
   }
+//BUILDBLOC//
 
   String convertWord(String word) {
     if (word.isEmpty) {

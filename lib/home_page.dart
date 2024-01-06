@@ -39,95 +39,67 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  getTrees(int use_case_description_id) async {
-    var response = await http.get(Uri.parse(
-        'http://10.0.2.2:8000/reqspec/use_case_descriptions/$use_case_description_id'));
-    var serializedData = jsonDecode(response.body);
+  //TREES
+  Future<void> getTrees(int use_case_description_id) async {
+    var serializedData = await fetchUseCaseDescription(use_case_description_id);
     use_case_description = serializedData;
-    for (var alternateFlowId in serializedData['alternate_flows']) {
-      var nodeListPage = NodeListPage(
-        treeId: alternateFlowId, // Replace with your first flowId
-        httpProvider: AlternateFlowHttpProvidor(),
-      );
-      alternate_flows.add(nodeListPage);
-      flow_map[alternateFlowId] = nodeListPage;
-      nodeListPage.associationStream.listen((event) {
-        final GlobalKey key =
-        flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
-        scrollToNode(key);
-        flow_map[event['tree_id']]!.nodeListWidget.selectNode(event['id']);
-        nodeListPage.nodeListWidget.deselectNode();
-      });
-      nodeListPage.nodeClickStream.listen((event) {
-        nodeClicked(event, nodeListPage);
-      });
 
-      nodeListPage.linkStream.listen((event) {
-        this.from_node = event;
-        setState(() {
-          selectionState = true;
-        });
-        from_node_list_page = nodeListPage;
-      });
-    }
-    for (var exceptionFlowId in serializedData['exception_flows']) {
-      var nodeListPage = NodeListPage(
-        treeId: exceptionFlowId, // Replace with your first flowId
-        httpProvider: ExceptionFlowHttpProvidor(),
-      );
-      exception_flows.add(nodeListPage);
-      flow_map[exceptionFlowId] = nodeListPage;
-      nodeListPage.associationStream.listen((event) {
-        final GlobalKey key =
-        flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
-        scrollToNode(key);
-        flow_map[event['tree_id']]!.nodeListWidget.selectNode(event['id']);
-        nodeListPage.nodeListWidget.deselectNode();
-      });
-      nodeListPage.nodeClickStream.listen((event) {
-        nodeClicked(event, nodeListPage);
-      });
-
-      nodeListPage.linkStream.listen((event) {
-        this.from_node = event;
-        this.from_node_list_page = nodeListPage;
-        setState(() {
-          selectionState = true;
-        });
-      });
-    }
-
-    main_flow = NodeListPage(
-      treeId: serializedData['main_flow'], // Replace with your first flowId
-      httpProvider: StepHttpProvider(),
-    );
-
-    flow_map[serializedData['main_flow']] = main_flow;
-    main_flow.associationStream.listen((event) {
-      final GlobalKey key =
-      flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
-      scrollToNode(key);
-      flow_map[event['tree_id']]!.nodeListWidget.selectNode(event['id']);
-      main_flow.nodeListWidget.deselectNode();
-    });
-
-    main_flow.nodeClickStream.listen((event) {
-      nodeClicked(event, main_flow);
-    });
-
-    main_flow.linkStream.listen((event) {
-      this.from_node = event;
-      from_node_list_page = main_flow;
-      setState(() {
-        selectionState = true;
-      });
-    });
+    processFlowData(serializedData['alternate_flows'], AlternateFlowHttpProvidor(), alternate_flows);
+    processFlowData(serializedData['exception_flows'], ExceptionFlowHttpProvidor(), exception_flows);
+    setupMainFlow(serializedData['main_flow']);
 
     setState(() {
       treesFetched = true;
     });
   }
-  //github
+
+  Future<dynamic> fetchUseCaseDescription(int id) async {
+    var response = await http.get(Uri.parse('http://10.0.2.2:8000/reqspec/use_case_descriptions/$id'));
+    return jsonDecode(response.body);
+  }
+
+  void processFlowData(List<dynamic> flowIds, TreeHttpProvider httpProvider, List<NodeListPage> flowsList) {
+    for (var flowId in flowIds) {
+      var nodeListPage = NodeListPage(treeId: flowId, httpProvider: httpProvider);
+      flowsList.add(nodeListPage);
+      flow_map[flowId] = nodeListPage;
+      setupNodeListPageListeners(nodeListPage);
+    }
+  }
+
+  void setupNodeListPageListeners(NodeListPage nodeListPage) {
+    nodeListPage.associationStream.listen((event) {
+      handleAssociationEvent(event, nodeListPage);
+    });
+    nodeListPage.nodeClickStream.listen((event) {
+      nodeClicked(event, nodeListPage);
+    });
+    nodeListPage.linkStream.listen((event) {
+      handleLinkEvent(event, nodeListPage);
+    });
+  }
+
+  void handleAssociationEvent(dynamic event, NodeListPage nodeListPage) {
+    final GlobalKey key = flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
+    scrollToNode(key);
+    flow_map[event['tree_id']]!.nodeListWidget.selectNode(event['id']);
+    nodeListPage.nodeListWidget.deselectNode();
+  }
+
+  void handleLinkEvent(Node event, NodeListPage nodeListPage) {
+    this.from_node = event;
+    this.from_node_list_page = nodeListPage;
+    setState(() {
+      selectionState = true;
+    });
+  }
+
+  void setupMainFlow(int mainFlowId) {
+    main_flow = NodeListPage(treeId: mainFlowId, httpProvider: StepHttpProvider());
+    flow_map[mainFlowId] = main_flow;
+    setupNodeListPageListeners(main_flow);
+  }
+  //TREES//
 
   Widget _buildNotificationWidget() {
     return Container(
@@ -302,3 +274,91 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 }
+//  getTrees(int use_case_description_id) async {
+//     var response = await http.get(Uri.parse(
+//         'http://10.0.2.2:8000/reqspec/use_case_descriptions/$use_case_description_id'));
+//     var serializedData = jsonDecode(response.body);
+//     use_case_description = serializedData;
+//     for (var alternateFlowId in serializedData['alternate_flows']) {
+//       var nodeListPage = NodeListPage(
+//         treeId: alternateFlowId, // Replace with your first flowId
+//         httpProvider: AlternateFlowHttpProvidor(),
+//       );
+//       alternate_flows.add(nodeListPage);
+//       flow_map[alternateFlowId] = nodeListPage;
+//       nodeListPage.associationStream.listen((event) {
+//         final GlobalKey key =
+//         flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
+//         scrollToNode(key);
+//         flow_map[event['tree_id']]!.nodeListWidget.selectNode(event['id']);
+//         nodeListPage.nodeListWidget.deselectNode();
+//       });
+//       nodeListPage.nodeClickStream.listen((event) {
+//         nodeClicked(event, nodeListPage);
+//       });
+//
+//       nodeListPage.linkStream.listen((event) {
+//         this.from_node = event;
+//         setState(() {
+//           selectionState = true;
+//         });
+//         from_node_list_page = nodeListPage;
+//       });
+//     }
+//     for (var exceptionFlowId in serializedData['exception_flows']) {
+//       var nodeListPage = NodeListPage(
+//         treeId: exceptionFlowId, // Replace with your first flowId
+//         httpProvider: ExceptionFlowHttpProvidor(),
+//       );
+//       exception_flows.add(nodeListPage);
+//       flow_map[exceptionFlowId] = nodeListPage;
+//       nodeListPage.associationStream.listen((event) {
+//         final GlobalKey key =
+//         flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
+//         scrollToNode(key);
+//         flow_map[event['tree_id']]!.nodeListWidget.selectNode(event['id']);
+//         nodeListPage.nodeListWidget.deselectNode();
+//       });
+//       nodeListPage.nodeClickStream.listen((event) {
+//         nodeClicked(event, nodeListPage);
+//       });
+//
+//       nodeListPage.linkStream.listen((event) {
+//         this.from_node = event;
+//         this.from_node_list_page = nodeListPage;
+//         setState(() {
+//           selectionState = true;
+//         });
+//       });
+//     }
+//
+//     main_flow = NodeListPage(
+//       treeId: serializedData['main_flow'], // Replace with your first flowId
+//       httpProvider: StepHttpProvider(),
+//     );
+//
+//     flow_map[serializedData['main_flow']] = main_flow;
+//     main_flow.associationStream.listen((event) {
+//       final GlobalKey key =
+//       flow_map[event['tree_id']]!.nodeListWidget.nodeKeys[event['id']]!;
+//       scrollToNode(key);
+//       flow_map[event['tree_id']]!.nodeListWidget.selectNode(event['id']);
+//       main_flow.nodeListWidget.deselectNode();
+//     });
+//
+//     main_flow.nodeClickStream.listen((event) {
+//       nodeClicked(event, main_flow);
+//     });
+//
+//     main_flow.linkStream.listen((event) {
+//       this.from_node = event;
+//       from_node_list_page = main_flow;
+//       setState(() {
+//         selectionState = true;
+//       });
+//     });
+//
+//     setState(() {
+//       treesFetched = true;
+//     });
+//   }
